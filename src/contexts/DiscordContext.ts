@@ -3,6 +3,8 @@
 import type {
   CommandInteraction, InteractionReplyOptions, InteractionResponse, Message, BaseMessageOptions, MessagePayload
 } from "discord.js";
+import { SetOptional } from "type-fest";
+import { CommandOptionAccessors } from "../types/CommandTemplate.js";
 
 import type {
   RequiredInteractions, PickModalInteraction, PickButtonInteraction, PickCommandInteraction, PickNonModalInteraction
@@ -83,10 +85,17 @@ export class DiscordButtonContext<AllowedInDMs extends boolean> extends DiscordN
   }
 }
 
-export class DiscordCommandContext<AllowedInDMs extends boolean> extends DiscordNonModalContext<AllowedInDMs> {
-  override readonly interaction: PickCommandInteraction<AllowedInDMs>;
+type OptionalAccessorCommandInteraction<AllowedInDMs extends boolean> = Omit<PickCommandInteraction<AllowedInDMs>, "options"> & {
+  options: SetOptional<PickCommandInteraction<AllowedInDMs>[ "options" ], keyof CommandOptionAccessors>;
+};
 
-  constructor(interaction: PickCommandInteraction<AllowedInDMs>) {
+export class DiscordCommandContext<
+  AllowedInDMs extends boolean,
+  PickedCommandInteraction extends OptionalAccessorCommandInteraction<AllowedInDMs>
+> extends DiscordNonModalContext<AllowedInDMs> {
+  override readonly interaction: PickedCommandInteraction;
+
+  constructor(interaction: PickedCommandInteraction) {
     super(interaction);
     this.interaction = interaction;
   }

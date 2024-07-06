@@ -3,8 +3,9 @@ import type { CommandInteraction, CommandInteractionOption } from "discord.js";
 import type { SprikeyBot } from "../SprikeyBot.js";
 import type { BaseContext } from "../contexts/BaseContext.js";
 import type { DiscordCommandContext } from "../contexts/DiscordContext.js";
+import { PickCommandInteraction } from "./CustomInteractions.js";
 
-interface CommandOptionAccessors {
+export interface CommandOptionAccessors {
   getSubcommand(required?: true): string;
   getSubcommand(required: boolean): string | null;
   getSubcommandGroup(required?: true): string;
@@ -52,8 +53,8 @@ interface CommandOption {
   readonly required: boolean;
 }
 
-type SelectOptionTypeProperty<CommandOptions extends readonly CommandOption[]> = CommandOptions[ number ][ "type" ];
 type ReadonlyCommandOptions = readonly CommandOption[];
+type SelectOptionTypeProperty<CommandOptions extends ReadonlyCommandOptions> = CommandOptions[ number ][ "type" ];
 
 type PickOptionNamesContainingType<
   Options extends ReadonlyCommandOptions,
@@ -67,12 +68,12 @@ type PickOptionNamesContainingType<
     : PickOptionNamesContainingType<RestData, TypeToMatch>
   : [];
 
-type MapOptionTypesToNames<CommandOptions extends readonly CommandOption[]> = {
+type MapOptionTypesToNames<CommandOptions extends ReadonlyCommandOptions> = {
   [ K in SelectOptionTypeProperty<CommandOptions> as OptionTypeMappingsInversed[ K ] ]:
   PickOptionNamesContainingType<CommandOptions, K>[ number ];
 };
 
-type OverridenOptionAccessors<CommandOptions extends readonly CommandOption[]> = {
+type OverridenOptionAccessors<CommandOptions extends ReadonlyCommandOptions> = {
   [ K in keyof MapOptionTypesToNames<CommandOptions> as `get${K}` ]: MapOptionTypesToNames<CommandOptions>[ K ] extends never
     ? CommandOptionAccessors[`get${K}`]
     : {
@@ -81,7 +82,10 @@ type OverridenOptionAccessors<CommandOptions extends readonly CommandOption[]> =
       }
 };
 
-export type ContexedCommandInteraction<GivenOptions extends readonly CommandOption[]> = Omit<CommandInteraction, "options"> & {
+export type ContexedCommandInteraction<
+  AllowedInDMs extends boolean,
+  GivenOptions extends ReadonlyCommandOptions
+> = Omit<PickCommandInteraction<AllowedInDMs>, "options"> & {
   options: OverridenOptionAccessors<GivenOptions>;
 };
 
@@ -95,8 +99,14 @@ interface BothCompatible {
 }
 
 type CommandCompatibility = BothCompatible | OnlyDiscordCompatible;
-type PickCompatibleContext<GivenCompatibility extends CommandCompatibility, AllowedInDMs extends boolean> = (
-  GivenCompatibility extends BothCompatible ? BaseContext : DiscordCommandContext<AllowedInDMs>
+type PickCompatibleContext<
+  GivenCompatibility extends CommandCompatibility,
+  AllowedInDMs extends boolean,
+  GivenOptions extends ReadonlyCommandOptions
+> = (
+  GivenCompatibility extends BothCompatible
+    ? BaseContext
+    : DiscordCommandContext<AllowedInDMs, ContexedCommandInteraction<AllowedInDMs, GivenOptions>>
 );
 
 // Contexted command interaction: ContexedCommandInteraction<GivenOptions>
